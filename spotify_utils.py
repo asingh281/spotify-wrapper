@@ -24,15 +24,21 @@ def get_active_device_id(sp: spotipy.Spotify) -> str | None:
             return d['id']
     return devices[0]['id']
 
-def current_track(sp: spotipy.Spotify) -> dict | None:
+def get_current_track(sp: spotipy.Spotify) -> str | None:
+    """returns track id of currently playing track, or None if nothing is playing"""
     current = sp.current_user_playing_track()
     if current and current.get('item'):
-        return current['item']
+        return current['item']['id']
     else:
         return None
 
-def play_track(sp: spotipy.Spotify, track_uri: str) -> None:
-    sp.start_playback(uris=[track_uri])
-
-def track_info(track_object: dict) -> str:
-    return f'{track_object["name"]} by {", ".join(artist["name"] for artist in track_object["artists"])}'
+def get_track_info(sp: spotipy.Spotify, track_id: str) -> str:
+    try:
+        track = sp.track(track_id)
+        if not track:
+            return '(track not found)'
+        name = track['name']
+        artists = ', '.join(artist['name'] for artist in track['artists'])
+        return f'{name} by {artists}'
+    except Exception as e:
+        return f'(error fetching info: {e})'

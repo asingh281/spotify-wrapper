@@ -1,8 +1,4 @@
-# Environment variables
 .env
-
-# Python virtual environment
 .venv/
-
-# Spotify API cache
+__pycache__/
 .cache
