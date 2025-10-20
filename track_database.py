@@ -13,8 +13,7 @@ def init_db():
         conn.execute('''
             CREATE TABLE IF NOT EXISTS track_weights (
                 track_id TEXT PRIMARY KEY,
-                weight REAL NOT NULL,
-                last_decay TIMESTAMP NOT NULL
+                weight REAL NOT NULL
             )
         ''')
         conn.commit()
@@ -28,8 +27,8 @@ def get_weight(track_id: str) -> float:
 def set_weight(track_id: str, weight: float):
     with get_connection() as conn:
         conn.execute('''
-            INSERT INTO track_weights (track_id, weight, last_decay)
-            VALUES (?, ?, current_date)
+            INSERT INTO track_weights (track_id, weight)
+            VALUES (?, ?)
             ON CONFLICT(track_id) DO UPDATE SET weight=excluded.weight
         ''', (track_id, weight))
         conn.commit()
@@ -46,28 +45,10 @@ def dislike_track(track_id: str):
     new_weight = current_weight / 2
     set_weight(track_id, new_weight)
     return new_weight
-
-def decay_track(track_id: str):
-    current_weight = get_weight(track_id)
-    new_weight = max(current_weight - 1, 0)
-    set_weight(track_id, new_weight)
-    return new_weight
-
-def decay_weights():
-    with get_connection() as conn:
-        conn.execute('''
-            UPDATE track_weights
-            SET weight = weight - (julianday(current_date) - julianday(last_decay)), last_decay = current_date
-            WHERE weight > 0
-        ''')
-        conn.commit()
         
-def view_tracks(get_track_info: Callable[[str], str]):
+def view_tracks(get_track_info: (Callable[[str], str] | None)=None):
     with get_connection() as conn:
-        cur = conn.execute('SELECT track_id, weight, last_decay FROM track_weights')
-        for track_id, weight, last_decay in cur.fetchall():
-            try:
-                info = get_track_info(track_id)
-            except Exception as e:
-                info = f'(error fetching info: {e})'
-            print(track_id, f'weight={weight:.2f}', last_decay, info)
+        cur = conn.execute('SELECT track_id, weight FROM track_weights')
+        for track_id, weight in cur.fetchall():
+            info = get_track_info(track_id) if get_track_info else ""
+            print(track_id, f'weight={weight:.2f}', info)

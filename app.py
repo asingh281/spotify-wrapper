@@ -1,7 +1,7 @@
 import os
 import sys
 from spotify_utils import get_spotify_client, get_active_device_id, get_current_track, get_track_info
-from track_database import init_db, like_track, dislike_track, decay_weights, view_tracks, DB_PATH
+from track_database import init_db, like_track, dislike_track, view_tracks, DB_PATH
 
 def start_playback() -> None:
     device = get_active_device_id(client)
@@ -50,8 +50,6 @@ if __name__ == "__main__":
                 print('Nothing is currently playing.')
         elif command == 'view':
             view_tracks(lambda track_id: get_track_info(client, track_id))
-        elif command == 'decay':
-            decay_weights()
         elif command in ('exit', 'stop'):
             sys.exit(1)
         else:
