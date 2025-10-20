@@ -5,7 +5,7 @@ DB_PATH = 'track_weights.db'
 MAX_WEIGHT = 40.0
 
 # DATABASE UTILITY FUNCTIONS
-def get_connection():
+def get_connection() -> sqlite3.Connection:
     return sqlite3.connect(DB_PATH)
 
 def init_db():
@@ -47,11 +47,18 @@ def dislike_track(track_id: str):
     set_weight(track_id, new_weight)
     return new_weight
 
+def decay_track(track_id: str):
+    current_weight = get_weight(track_id)
+    new_weight = max(current_weight - 1, 0)
+    set_weight(track_id, new_weight)
+    return new_weight
+
 def decay_weights():
     with get_connection() as conn:
         conn.execute('''
             UPDATE track_weights
             SET weight = weight - (julianday(current_date) - julianday(last_decay)), last_decay = current_date
+            WHERE weight > 0
         ''')
         conn.commit()
         

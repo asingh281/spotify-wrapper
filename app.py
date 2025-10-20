@@ -1,6 +1,7 @@
+import os
 import sys
 from spotify_utils import get_spotify_client, get_active_device_id, get_current_track, get_track_info
-from track_database import init_db, like_track, dislike_track, decay_weights, view_tracks
+from track_database import init_db, like_track, dislike_track, decay_weights, view_tracks, DB_PATH
 
 def start_playback() -> None:
     device = get_active_device_id(client)
@@ -29,9 +30,11 @@ def dislike() -> None:
 
 if __name__ == "__main__":
     client = get_spotify_client()
-    init_db()
-    decay_weights()
-    start_playback()
+    if os.path.exists(DB_PATH):
+        init_db()
+    if len(sys.argv) > 1 and "play" in sys.argv:
+        start_playback()
+    
     print('commands: like, dislike, track, view, stop')
     while True:
         command = input('enter command: ').strip().casefold()
