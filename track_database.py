@@ -47,19 +47,20 @@ def dislike_track(track_id: str):
     set_weight(track_id, new_weight)
     return new_weight
         
-def view_tracks(get_track_info: (Callable[[str], str] | None)=None):
+def get_tracks(get_track_info: (Callable[[str], str] | None)=None):
+    tracks = []
     with get_connection() as conn:
         cur = conn.execute('SELECT track_id, weight FROM track_weights')
         for track_id, weight in cur.fetchall():
             info = get_track_info(track_id) if get_track_info else ""
-            print(track_id, f'weight={weight:.2f}', info)
+            tracks.append((track_id, weight, info))
+    return tracks
 
 def choose_track() -> str:
     with get_connection() as conn:
         cur = conn.execute('SELECT SUM(weight) FROM track_weights')
         sum_weights = cur.fetchone()[0]
         r = random.random() * sum_weights
-        print(r)
         cur = conn.execute("""
             SELECT track_id
             FROM (
@@ -71,6 +72,4 @@ def choose_track() -> str:
             ORDER BY track_id
             LIMIT 1;
         """, (r,))
-        track = cur.fetchone()[0]
-        print(track)
-    return track
+        return cur.fetchone()[0]
