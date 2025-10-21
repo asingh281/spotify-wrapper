@@ -1,8 +1,9 @@
 from typing import Callable
+import random
 import sqlite3
 
 DB_PATH = 'track_weights.db'
-MAX_WEIGHT = 40.0
+MAX_WEIGHT = 1.0
 
 # DATABASE UTILITY FUNCTIONS
 def get_connection() -> sqlite3.Connection:
@@ -33,7 +34,7 @@ def set_weight(track_id: str, weight: float):
         ''', (track_id, weight))
         conn.commit()
 
-# TRACK WEIGHT FUNCTIONS
+# APPLICATION FUNCTIONS
 def like_track(track_id: str):
     current_weight = get_weight(track_id)
     new_weight = current_weight + (MAX_WEIGHT - current_weight) / 2
@@ -52,3 +53,24 @@ def view_tracks(get_track_info: (Callable[[str], str] | None)=None):
         for track_id, weight in cur.fetchall():
             info = get_track_info(track_id) if get_track_info else ""
             print(track_id, f'weight={weight:.2f}', info)
+
+def choose_track() -> str:
+    with get_connection() as conn:
+        cur = conn.execute('SELECT SUM(weight) FROM track_weights')
+        sum_weights = cur.fetchone()[0]
+        r = random.random() * sum_weights
+        print(r)
+        cur = conn.execute("""
+            SELECT track_id
+            FROM (
+                SELECT track_id, weight, SUM(weight)
+                OVER (ORDER BY track_id) as cumulative_weight
+                FROM track_weights
+            )
+            WHERE cumulative_weight >= ?
+            ORDER BY track_id
+            LIMIT 1;
+        """, (r,))
+        track = cur.fetchone()[0]
+        print(track)
+    return track
