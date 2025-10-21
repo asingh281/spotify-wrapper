@@ -7,17 +7,20 @@ CACHE_PATH: str = '.cache'
 SCOPE = 'user-modify-playback-state user-read-playback-state'
 
 def get_spotify_client() -> spotipy.Spotify:
+    """
+    returns an authenticated Spotify client
+    needs SPOTIPY_CLIENT_ID, SPOTIPY_CLIENT_SECRET, SPOTIPY_REDIRECT_URL as environment variables
+    """
     auth_manager = SpotifyOAuth(scope=SCOPE, cache_path=CACHE_PATH)
     return spotipy.Spotify(auth_manager=auth_manager)
 
 def get_active_device_id(sp: spotipy.Spotify) -> str | None:
+    """returns the device id of the active device, or the first available device, or None if no devices are found"""
     response = sp.devices()
     if not response:
-        print('No response from Spotify API for devices.')
         return None
     devices = response.get('devices', [])
     if not devices:
-        print('No device found.')
         return None
     for d in devices:
         if d.get('is_active'):
@@ -39,6 +42,6 @@ def get_track_info(sp: spotipy.Spotify, track_id: str) -> str:
             return '(track not found)'
         name = track['name']
         artists = ', '.join(artist['name'] for artist in track['artists'])
-        return f'{name} by {artists}'
+        return f'"{name}" by {artists}'
     except Exception as e:
         return f'(error fetching info: {e})'

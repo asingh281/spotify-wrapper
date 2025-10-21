@@ -1,58 +1,85 @@
-import os
 import sys
+from inspect import signature
 from spotify_utils import get_spotify_client, get_active_device_id, get_current_track, get_track_info
-from track_database import init_db, like_track, dislike_track, decay_weights, view_tracks, DB_PATH
+from track_database import TrackDB
 
-def start_playback() -> None:
-    device = get_active_device_id(client)
-    if device:
-        if get_current_track(client):
-            return
-        client.start_playback(device_id = device, context_uri='spotify:playlist:14m2DsbkucFqxzW9aD3ydT')
+DB_PATH = 'track_weights.db'
+MAX_WEIGHT = 1.0
+
+def like():
+    track_id = get_current_track(client)
+    if not track_id:
+        print('No track is currently playing.')
+        return
+    old = db.get_weight(track_id)
+    new = old + (MAX_WEIGHT - old) / 2
+    db.set_weight(track_id, new)
+    print(f'Liked {get_track_info(client, track_id)}. New weight: {new:.2f}.')
+
+def dislike():
+    track_id = get_current_track(client)
+    if not track_id:
+        print('No track is currently playing.')
+        return
+    old = db.get_weight(track_id)
+    new = old / 2
+    db.set_weight(track_id, new)
+    print(f'Disliked {get_track_info(client, track_id)}. New weight: {new:.2f}.')
+
+def track_info():
+    track_id = get_current_track(client)
+    if track_id:
+        print(f'Currently playing: {get_track_info(client, track_id)}.')
     else:
-        print('Could not find a device to start playback.')
+        print('No track is currently playing.')
 
-def like() -> None:
-    track_id = get_current_track(client)
-    if not track_id:
-        print('No track is currently playing to like.')
-        return
-    weight = like_track(track_id)
-    print(f'liked {get_track_info(client, track_id)} (weight={weight:.2f})')
+def list_tracks():
+    tracks = db.get_tracks(lambda track_id: get_track_info(client, track_id))
+    for track_id, weight, info in tracks:
+        print(track_id, f"{weight:.2f}", info)
+        # print(track_id, round(weight*100), info)
 
-def dislike() -> None:
-    track_id = get_current_track(client)
-    if not track_id:
-        print('No track is currently playing to dislike.')
+def queue_tracks(n = 1):
+    if not isinstance(n, int):
+        try:
+            n = int(n)
+        except TypeError:
+            print('Could not parse number of tracks to queue.')
+            return
+    device = get_active_device_id(client)
+    if not device:
+        print('Could not find a device to queue tracks.')
         return
-    weight = dislike_track(track_id)
-    print(f'disliked {get_track_info(client, track_id)} (weight={weight:.2f})')
+    for _ in range(n):
+        track_id = db.get_random_track()
+        client.add_to_queue(track_id, device)
+        print(f'Queued {get_track_info(client, track_id)}.')
+
+COMMANDS = {
+    ('like', 0): like,
+    ('dislike', 0): dislike,
+    ('info', 0): track_info,
+    ('list', 0): list_tracks,
+    ('queue', 0): queue_tracks,
+    ('queue', 1): queue_tracks,
+    ('exit', 0): sys.exit
+}
+
+COMMAND_LIST = ', '.join(
+    f'{name} {' '.join(signature(function).parameters.keys())}' if num_args else name
+    for (name, num_args), function in COMMANDS.items()
+)
 
 if __name__ == "__main__":
     client = get_spotify_client()
-    if os.path.exists(DB_PATH):
-        init_db()
-    if len(sys.argv) > 1 and "play" in sys.argv:
-        start_playback()
-    
-    print('commands: like, dislike, track, view, stop')
+    db = TrackDB(DB_PATH)
+
+    print('Available commands:', COMMAND_LIST)
     while True:
-        command = input('enter command: ').strip().casefold()
-        if command == 'like':
-            like()
-        elif command == 'dislike':
-            dislike()
-        elif command == 'track':
-            track_id = get_current_track(client)
-            if track_id:
-                print(f'Currently playing: {get_track_info(client, track_id)}')
-            else:
-                print('Nothing is currently playing.')
-        elif command == 'view':
-            view_tracks(lambda track_id: get_track_info(client, track_id))
-        elif command == 'decay':
-            decay_weights()
-        elif command in ('exit', 'stop'):
-            sys.exit(1)
+        command = input('Enter command: ').strip().casefold().split()
+        args = command[1:]
+        command = command[0]
+        if (func := COMMANDS.get((command, len(args)))):
+            func(*args)
         else:
-            print('unreocgnized command')
+            print('Unrecognized command. Please enter one of the following:', COMMAND_LIST)
