@@ -34,7 +34,7 @@ def track_info():
         print('No track is currently playing.')
 
 def list_tracks():
-    tracks = db.get_tracks(lambda track_id: get_track_info(client, track_id))
+    tracks = db.get_tracks()
     for track_id, weight, info in tracks:
         print(track_id, f"{weight:.2f}", info)
         # print(track_id, round(weight*100), info)
