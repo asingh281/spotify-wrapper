@@ -87,7 +87,17 @@ class TrackDB:
             artists = ast.literal_eval(row[2])
             return Track(id, name, artists)
     
-    def fill_db(self, tracks: list[Track], MAX_WEIGHT: float):
-        increment = MAX_WEIGHT / len(tracks)
-        for i, track in enumerate(tracks):
-            self.add_track(track, MAX_WEIGHT - increment * i)
+    def fill_db(self, recent_tracks: list[Track], old_tracks: list[Track], MAX_WEIGHT: float):
+        increment = MAX_WEIGHT / 2 / len(recent_tracks)
+        for i, (r, o) in enumerate(zip(recent_tracks, old_tracks)):
+            if self.get_weight(r.id) is None:
+                self.add_track(r, MAX_WEIGHT * 0.75 - increment * i)
+            else:
+                # TODO something better
+                pass
+            
+            if self.get_weight(r.id) is None:
+                self.add_track(o, MAX_WEIGHT * 0.75 - increment * i)
+            else:
+                # TODO something better
+                pass

@@ -1,6 +1,6 @@
 import sys
 from inspect import signature
-from spotify_utils import get_spotify_client, get_active_device_id, get_current_track, get_track_info, get_top_tracks
+from spotify_utils import get_spotify_client, get_active_device_id, get_current_track, get_top_tracks
 from track_database import TrackDB
 
 DB_PATH = 'track_weights.db'
@@ -37,7 +37,8 @@ def dislike():
 def track_info():
     track = get_current_track(client)
     if track:
-        print(f'Currently playing: {track.info()}.')
+        weight = db.get_weight(track.id)
+        print(f'Currently playing: {track.info()}.', "Weight:", f"{weight:.2f}" if weight else weight)
     else:
         print('No track is currently playing.')
 
@@ -45,6 +46,7 @@ def list_tracks():
     tracks = db.get_tracks()
     for track, weight in tracks:
         print(f"{weight:.2f}", track.info())
+    print("Number of tracks: " + db.num_tracks())
 
 def queue_tracks(n = 1):
     if not isinstance(n, int):
@@ -83,7 +85,7 @@ if __name__ == "__main__":
     if db.num_tracks() == 0:
         top_tracks = get_top_tracks(client)
         if top_tracks:
-            db.fill_db(top_tracks, MAX_WEIGHT)
+            db.fill_db(*top_tracks, MAX_WEIGHT)
             print("Filled database with your top tracks.")
     print('Available commands:', COMMAND_LIST)
     while True:

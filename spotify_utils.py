@@ -46,22 +46,26 @@ def get_current_track(sp: spotipy.Spotify) -> Track | None:
         return from_track_object(current['item'])
     else:
         return None
-
-def get_track_info(sp: spotipy.Spotify, track_id: str) -> str:
-    try:
-        track = sp.track(track_id)
-        if not track:
-            return '(track not found)'
-        return from_track_object(track).info()
-    except Exception as e:
-        return f'(error fetching info: {e})'
     
-def get_top_tracks(sp: spotipy.Spotify) -> list[Track] | None:
-    resp = sp.current_user_top_tracks()
+def get_top_tracks(sp: spotipy.Spotify) -> tuple[list[Track], list[Track]] | None:
+    """
+    returns user's medium-term top 50 tracks and long-term top 50 tracks
+    returns None if either API call fails
+    """
+    resp = sp.current_user_top_tracks(limit=50, time_range='medium_term')
     if not resp:
         return None
-    top_tracks = []
+    recent_tracks = []
     for track in resp['items']:
         t = from_track_object(track)
-        top_tracks.append(t)
-    return top_tracks
+        recent_tracks.append(t)
+
+    
+    resp = sp.current_user_top_tracks(limit=50, time_range='long_term')
+    if not resp:
+        return None
+    old_tracks = []
+    for track in resp['items']:
+        t = from_track_object(track)
+        old_tracks.append(t)
+    return (recent_tracks, old_tracks)
