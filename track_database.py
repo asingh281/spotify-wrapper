@@ -1,7 +1,8 @@
-from typing import Callable
 import os
 import random
 import sqlite3
+import ast
+from spotify_utils import Track
 
 class TrackDB:
     def __init__(self, db_path: str):
@@ -18,43 +19,61 @@ class TrackDB:
                 CREATE TABLE IF NOT EXISTS tracks (
                     id TEXT PRIMARY KEY,
                     weight REAL NOT NULL,
-                    info TEXT
+                    name TEXT NOT NULL,
+                    artists TEXT NOT NULL
                 )
             ''')
             conn.commit()
+        
+    def num_tracks(self):
+        with self.get_connection() as conn:
+            cur = conn.execute('SELECT COUNT(*) FROM tracks')
+            return cur.fetchone()[0]
 
-    def get_weight(self, track_id: str) -> float:
+    def get_weight(self, track_id: str) -> float | None:
         with self.get_connection() as conn:
             cur = conn.execute('SELECT weight FROM tracks WHERE id = ?', (track_id,))
             row = cur.fetchone()
-            return max(row[0], 0) if row else 0
+            if row:
+                return max(row[0], 0)
+            else:
+                return None
+    
+    def add_track(self, track: Track, weight: float = 0, ):
+        with self.get_connection() as conn:
+            conn.execute('''
+                INSERT INTO tracks (id, weight, name, artists)
+                VALUES (?, ?, ?, ?)
+            ''', (track.id, weight, track.name, str(track.artists)))
+            conn.commit()
 
     def set_weight(self, track_id: str, weight: float):
         with self.get_connection() as conn:
             conn.execute('''
-                INSERT INTO tracks (id, weight)
-                VALUES (?, ?)
-                ON CONFLICT(id) DO UPDATE SET weight=excluded.weight
-            ''', (track_id, weight))
+                UPDATE tracks
+                SET weight = ?
+                WHERE id = ?
+            ''', (weight, track_id))
             conn.commit()
         
-    def get_tracks(self) -> list[tuple[str, float, str]]:
+    def get_tracks(self) -> list[tuple[Track, float]]:
         tracks = []
         with self.get_connection() as conn:
-            cur = conn.execute('SELECT id, weight, info FROM tracks')
-            for id, weight, info in cur.fetchall():
-                tracks.append((id, weight, info))
+            cur = conn.execute('SELECT id, weight, name, artists FROM tracks')
+            for id, weight, name, artists in cur.fetchall():
+                t = Track(id, name, ast.literal_eval(artists))
+                tracks.append((t, weight))
         return tracks
 
-    def get_random_track(self) -> str:
+    def get_random_track(self) -> Track:
         with self.get_connection() as conn:
             cur = conn.execute('SELECT SUM(weight) FROM tracks')
             sum_weights = cur.fetchone()[0]
             r = random.random() * sum_weights
             cur = conn.execute("""
-                SELECT id
+                SELECT id, name, artists
                 FROM (
-                    SELECT id, weight, SUM(weight)
+                    SELECT id, name, artists, weight, SUM(weight)
                     OVER (ORDER BY id) as cumulative_weight
                     FROM tracks
                 )
@@ -62,4 +81,13 @@ class TrackDB:
                 ORDER BY id
                 LIMIT 1;
             """, (r,))
-            return cur.fetchone()[0]
+            row = cur.fetchone()
+            id = row[0]
+            name = row[1]
+            artists = ast.literal_eval(row[2])
+            return Track(id, name, artists)
+    
+    def fill_db(self, tracks: list[Track], MAX_WEIGHT: float):
+        increment = MAX_WEIGHT / len(tracks)
+        for i, track in enumerate(tracks):
+            self.add_track(track, MAX_WEIGHT - increment * i)
