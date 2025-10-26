@@ -46,7 +46,7 @@ def list_tracks():
     tracks = db.get_tracks()
     for track, weight in tracks:
         print(f"{weight:.2f}", track.info())
-    print("Number of tracks: " + db.num_tracks())
+    print(f'Number of tracks: {db.num_tracks()}')
 
 def queue_tracks(n = 1):
     if not isinstance(n, int):
